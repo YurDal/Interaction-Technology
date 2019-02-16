@@ -4,7 +4,7 @@
 #include "DHT.h"
 
 
-#define DHTPIN 2     // Digital pin connected to the DHT sensor
+#define DHTPIN 22     // Digital pin connected to the DHT sensor
 
 // Uncomment whatever type you're using!
 //#define DHTTYPE DHT11   // DHT 11
@@ -13,9 +13,9 @@
 
 
 const int red_pin = 13;
-const int green_pin = 11;
-const int yellow_pin = 12;
-const int ldr_pin = A0; //select the input pin for LDR
+const int green_pin = 13;
+const int yellow_pin = 25;
+const int ldr_pin = 14; //select the input pin for LDR
 const int thermistor_pin = A1;
 
 float R1 = 10000;
@@ -40,7 +40,7 @@ DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor
 
 */
 float CalculateThermistor(int AnalogValue) {
-  logRt = log(10000.0 * ((1024.0 / AnalogValue - 1))); //Vout= (Vin * Rt) / (R + Rt) ==> Rt = R (Vin/Vout) – 1 ==> T=1/(c1+c2*logRt+c3*logRt*logRt*logRt)
+  logRt = log(100000.0 * ((1024.0 / AnalogValue - 1))); //Vout= (Vin * Rt) / (R + Rt) ==> Rt = R (Vin/Vout) – 1 ==> T=1/(c1+c2*logRt+c3*logRt*logRt*logRt)
   T = (1.0 / (c1 + c2 * logRt + c3 * logRt * logRt * logRt)); // We get the temperature value in Kelvin from this Stein-Hart equation
   Tc = T - 273.15;                     // Convert Kelvin to Celsius
   Tf = (Tc * 1.8) + 32.0;              // Convert Kelvin to Fahrenheit
