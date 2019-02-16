@@ -1,5 +1,5 @@
 // Author Yurdaer Dalkic & Hadi Deknache
-
+#include <analogWrite.h>
 #include <math.h>
 #include "DHT.h"
 
@@ -12,17 +12,18 @@
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
 
 
-const int red_pin = 13;
+const int red_pin = 12;
 const int green_pin = 13;
 const int yellow_pin = 25;
 const int ldr_pin = 14; //select the input pin for LDR
-const int thermistor_pin = A1;
+const int thermistor_pin = 27;
+const int mic_pin = 33;
 
 float R1 = 10000;
 float logRt, T, Tc, Tf;
 float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
 
-int room_temp;
+const int room_temp_limit = 25;;
 int ldr_values = 0; //variable to store the value coming from the LDR sensor
 int noise_values = 0; //variable to store the value coming from the sound sensor
 float temp_value_C = 0; //variable to store the value coming from the temprature sensor Celcius
@@ -40,16 +41,18 @@ DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor
 
 */
 float CalculateThermistor(int AnalogValue) {
-  logRt = log(100000.0 * ((1024.0 / AnalogValue - 1))); //Vout= (Vin * Rt) / (R + Rt) ==> Rt = R (Vin/Vout) – 1 ==> T=1/(c1+c2*logRt+c3*logRt*logRt*logRt)
+  logRt = log(10000.0 * ((1024.0 / AnalogValue - 1))); //Vout= (Vin * Rt) / (R + Rt) ==> Rt = R (Vin/Vout) – 1 ==> T=1/(c1+c2*logRt+c3*logRt*logRt*logRt)
   T = (1.0 / (c1 + c2 * logRt + c3 * logRt * logRt * logRt)); // We get the temperature value in Kelvin from this Stein-Hart equation
   Tc = T - 273.15;                     // Convert Kelvin to Celsius
   Tf = (Tc * 1.8) + 32.0;              // Convert Kelvin to Fahrenheit
   return T;
 }
 int ReadLDR() {
-  return analogRead(A0);
+  return analogRead(ldr_pin);
 }
-
+int ReadMIC() {
+  return analogRead(mic_pin);
+}
 bool ReadTempHum() {
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -74,20 +77,43 @@ bool ReadTempHum() {
 
 void setup() {
   Serial.begin(9600); //sets serial port for communication
+  analogReadResolution(10);
+  analogWriteResolution(10);
+  pinMode(mic_pin, INPUT);
   pinMode(red_pin, OUTPUT);
   pinMode(green_pin, OUTPUT);
-  pinMode(red_pin, OUTPUT);
+  pinMode(yellow_pin, OUTPUT);
   pinMode(ldr_pin, INPUT);
   dht.begin();
 }
 
 void loop() {
   ldr_values = ReadLDR();
-  analogWrite(green_pin, (ldr_values / 4));
+  int light_value = (1023 - (ldr_values - 700) * 3.5);
+  if (light_value < 200) {
+    light_value = 0;
+  }
+  else if (light_value > 900) {
+    light_value = 1023;
+  }
+  analogWrite(green_pin, light_value );
+
   Serial.print("LDR values :");
   Serial.println(ldr_values);
+
+  int mic_value = ReadMIC();
+  if (mic_value < 500) {
+    digitalWrite(red_pin, LOW);
+  }
+  else {
+    digitalWrite(red_pin, HIGH);
+  }
+
+  Serial.print("MIC values :");
+  Serial.println(mic_value);
+
   if (ReadTempHum()) {
-    if ( temp_value_C > 20) {
+    if ( temp_value_C > room_temp_limit) {
       digitalWrite(yellow_pin, HIGH);
     }
     else {
@@ -98,16 +124,22 @@ void loop() {
     Serial.print("Temprature value Fahrenheit :");
     Serial.println(temp_value_F);
   }
-  /**
 
+
+
+
+  /*
     thermistor_value = CalculateThermistor(analogRead(thermistor_pin));
-      if ( thermistor_value > 20) {
+    Serial.println(thermistor_value);
+    if ( thermistor_value > room_temp_limit) {
       digitalWrite(yellow_pin, HIGH);
     }
     else {
       digitalWrite(thermistor_value, LOW);
     }
   */
+  delay(500);
+
 
 
 }
