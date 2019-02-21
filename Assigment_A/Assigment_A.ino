@@ -17,7 +17,7 @@
 const int red_pin = 12;
 const int green_pin = 13;
 const int yellow_pin = 25;
-const int ldr_pin = 14; //select the input pin for LDR
+const int ldr_pin = 32; //select the input pin for LDR
 const int thermistor_pin = 27;
 const int mic_pin = 33;
 
@@ -32,22 +32,24 @@ double temp_value_F = 0; //variable to store the value coming from the tempratur
 double humid_value = 0; //variable to store the value coming from the temprature sensor
 float thermistor_value = 0;
 
-bool LDR = false;
-bool NOISE = false;
-bool TEMP = false;
-bool HUMID = false;
+bool LDR = true;
+bool NOISE = true;
+bool TEMP = true;
+bool HUMID = true;
 
-const char* password = "206264D2480";
-const char* ssid = "Tele2Internet-9EB85";
+const char* password = "12345678";
+const char* ssid = "Yurdaer";
 const char* mqtt_server = "m23.cloudmqtt.com";
 const int mqtt_port =   10941;
-const char* mqtt_user = "Weareble";
-const char* mqtt_password = "Weareble";
-char* inTopic = "Project/InteractionIn";
-char* outTopic = "Project/InteractionOut";
+const char* mqtt_user = "dqaqegod";
+const char* mqtt_password = "JVPMD0qw7ij4";
+char* inTopic = "SensorIn";
+char* outTopic = "SensorOut";
 char* helloMsg = "Sensor is online";
-char msg[50];
+char msg[100];
 String sMsg = "";
+int freq = 30;
+int loopTime = 0;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -59,8 +61,7 @@ DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor
 void setup() {
   Serial.begin(9600); //sets serial port for communication
   setup_wifi();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
+
   analogReadResolution(10);
   analogWriteResolution(10);
   pinMode(mic_pin, INPUT);
@@ -69,6 +70,11 @@ void setup() {
   pinMode(yellow_pin, OUTPUT);
   pinMode(ldr_pin, INPUT);
   dht.begin();
+  client.setServer(mqtt_server, mqtt_port);
+  client.connect("ESP32Client", mqtt_user, mqtt_password);
+  client.setCallback(callback);
+  client.publish(outTopic, "ready");
+  client.subscribe(inTopic);
 }
 
 void loop() {
@@ -80,21 +86,17 @@ void loop() {
 
   if (LDR) {
     ldr_values = ReadLDR();
-    int light_value = (1023 - (ldr_values - 700) * 3.5);
-    if (light_value < 200) {
-      light_value = 0;
+    if (ldr_values < 800) {
+      digitalWrite(green_pin, HIGH );
     }
-    else if (light_value > 900) {
-      light_value = 1023;
+    else {
+      digitalWrite(green_pin, LOW );
     }
-    analogWrite(green_pin, light_value );
-    Serial.print("LDR values :");
-    Serial.println(ldr_values);
-    sMsg += " , LDR Value:" + ldr_values;
 
+    sMsg = "LDR Value:" + String(ldr_values) ;
   }
 
-  else if (NOISE) {
+  if (NOISE) {
     noise_values = ReadMIC();
     if (noise_values < 500) {
       digitalWrite(red_pin, LOW);
@@ -102,13 +104,10 @@ void loop() {
     else {
       digitalWrite(red_pin, HIGH);
     }
-
-    Serial.print("NOISE values :");
-    Serial.println(noise_values);
-    sMsg += " , MIC Value:" + noise_values;
+    sMsg += " , MIC Value:" + String(noise_values);
   }
 
-  else if (TEMP || HUMID) {
+  if (TEMP || HUMID) {
 
     if (ReadTempHum()) {
       if ( temp_value_C > room_temp_limit) {
@@ -119,20 +118,16 @@ void loop() {
       }
     }
     if (TEMP) {
-      Serial.print("Temprature value Celcius :");
-      Serial.println(temp_value_C);
-      Serial.print("Temprature value Fahrenheit :");
-      Serial.println(temp_value_F);
+
       sMsg += " , Temperature Value:" + String(temp_value_C) ;
     }
-    else if (HUMID) {
+    if (HUMID) {
       sMsg += " , Humidity :" + String(humid_value);
-      Serial.print("Humidity value  :");
-      Serial.println(humid_value);
+
     }
   }
-  sMsg.toCharArray(msg, 50);
-  client.publish(outTopic, msg);
+  sMsg.toCharArray(msg, 100);
+
   /*
     thermistor_value = CalculateThermistor(analogRead(thermistor_pin));
     Serial.println(thermistor_value);
@@ -143,8 +138,25 @@ void loop() {
       digitalWrite(thermistor_value, LOW);
     }
   */
-  delay(500);
 
+
+  delay(100);
+  loopTime++;
+  if (loopTime == 100) {
+    client.publish(outTopic, msg);
+    Serial.print("LDR values :");
+    Serial.println(ldr_values);
+    Serial.print("NOISE values :");
+    Serial.println(noise_values);
+    Serial.print("Temprature value Celcius :");
+    Serial.println(temp_value_C);
+    Serial.print("Temprature value Fahrenheit :");
+    Serial.println(temp_value_F);
+    Serial.print("Humidity value  :");
+    Serial.println(humid_value);
+    Serial.println(msg);
+    loopTime = 0;
+  }
 }
 
 /**
@@ -211,7 +223,7 @@ void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ESP8266Client", mqtt_user, mqtt_password)) {
+    if (client.connect("ESP32Client", mqtt_user, mqtt_password)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.publish(outTopic, helloMsg);
@@ -237,58 +249,52 @@ void callback(char* topic, byte* message, unsigned int length) {
     inMessage += (char)message[i];
   }
   Serial.println();
-  if (String(topic) == "Project/InteractionIn") {
-    if (inMessage == "LDR=ON") {
-      Serial.println(inMessage);
-      LDR = true;
-    }
-    else if (inMessage == "LDR=OFF") {
-      Serial.println(inMessage);
-      LDR = false;
-      analogWrite(green_pin, 0 );
-    }
-    else if (inMessage == "NOISE=ON") {
-      Serial.println(inMessage);
-      NOISE = true;
-    }
-    else if (inMessage == "NOISE=OFF") {
-      Serial.println(inMessage);
-      NOISE = false;
-      digitalWrite(red_pin, LOW);
-    }
-    else if (inMessage == "TEMP=ON") {
-      Serial.println(inMessage);
-      TEMP = true;
-    }
-    else if (inMessage == "TEMP=OFF") {
-      Serial.println(inMessage);
-      TEMP = false;
-      digitalWrite(yellow_pin, LOW);
-    }
-    else if (inMessage == "HUMID=ON") {
-      Serial.println(inMessage);
-      HUMID = true;
-    }
-    else if (inMessage == "HUMID=OFF") {
-      Serial.println(inMessage);
-      HUMID = false;
-    }
-    else if (inMessage == "ALL=OFF") {
-      Serial.println(inMessage);
-      bool LDR = false;
-      bool NOISE = false;
-      bool TEMP = false;
-      bool HUMID = false;
-      digitalWrite(yellow_pin, LOW);
-      digitalWrite(red_pin, LOW);
-      analogWrite(green_pin, 0 );
-    }
-    else if (inMessage == "ALL=ON") {
-      Serial.println(inMessage);
-      bool LDR = true;
-      bool NOISE = true;
-      bool TEMP = true;
-      bool HUMID = true;
-    }
+
+  if (inMessage == "LDR=ON") {
+    Serial.println(inMessage);
+    LDR = true;
   }
+  else if (inMessage.equals("LDR=OFF")) {
+    LDR = false;
+    digitalWrite(green_pin, LOW );
+  }
+  else if (inMessage == "NOISE=ON") {
+    NOISE = true;
+  }
+  else if (inMessage == "NOISE=OFF") {
+    Serial.println(inMessage);
+    NOISE = false;
+    digitalWrite(red_pin, LOW);
+  }
+  else if (inMessage == "TEMP=ON") {
+    TEMP = true;
+  }
+  else if (inMessage == "TEMP=OFF") {
+    Serial.println(inMessage);
+    TEMP = false;
+    digitalWrite(yellow_pin, LOW);
+  }
+  else if (inMessage == "HUMID=ON") {
+    HUMID = true;
+  }
+  else if (inMessage == "HUMID=OFF") {
+    HUMID = false;
+  }
+  else if (inMessage == "ALL=OFF") {
+    LDR = false;
+    NOISE = false;
+    TEMP = false;
+    HUMID = false;
+    digitalWrite(yellow_pin, LOW);
+    digitalWrite(red_pin, LOW);
+    digitalWrite(green_pin, LOW );
+  }
+  else if (inMessage == "ALL=ON") {
+    LDR = true;
+    NOISE = true;
+    TEMP = true;
+    HUMID = true;
+  }
+
+
 }
