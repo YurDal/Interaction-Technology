@@ -6,56 +6,55 @@
 #include "DHT.h"
 
 
-#define DHTPIN 22     // Digital pin connected to the DHT sensor
-
-// Uncomment whatever type you're using!
-//#define DHTTYPE DHT11   // DHT 11
-#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
-//#define DHTTYPE DHT21   // DHT 21 (AM2301)
+#define DHTPIN 22       // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321 sensor
 
 
 const int red_pin = 12;
 const int green_pin = 13;
 const int yellow_pin = 25;
-const int ldr_pin = 32; //select the input pin for LDR
+const int ldr_pin = 32; 
 const int thermistor_pin = 27;
 const int mic_pin = 33;
 
 float R1 = 10000;
 float logRt, T, Tc, Tf;
-float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
-const int room_temp_limit = 25;;
-int ldr_values = 0; //variable to store the value coming from the LDR sensor
-int noise_values = 0; //variable to store the value coming from the sound sensor
-double temp_value_C = 0; //variable to store the value coming from the temprature sensor Celcius
-double temp_value_F = 0; //variable to store the value coming from the temprature sensor Fahrenheit
-double humid_value = 0; //variable to store the value coming from the temprature sensor
-float thermistor_value = 0;
+float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07; //Coefficients for the NTC sensor
+const int room_temp_limit = 25;
+int ldr_values         = 0; //variable to store the value coming from the LDR sensor
+int noise_values       = 0; //variable to store the value coming from the microphone sensor
+double temp_value_C    = 0; //variable to store the value coming from the temperature sensor Celcius
+double temp_value_F    = 0; //variable to store the value coming from the temperature sensor Fahrenheit
+double humid_value     = 0; //variable to store the value coming from the temperature sensor
+float thermistor_value = 0; //variable to store the value coming from the temperature sensor (NTC)
 
-bool LDR = true;
+/*Boolean for enabling/disabling sensor reading*/
+bool LDR   = true;
 bool NOISE = true;
-bool TEMP = true;
+bool TEMP  = true;
 bool HUMID = true;
 
-const char* password = "12345678";
-const char* ssid = "Yurdaer";
-const char* mqtt_server = "m23.cloudmqtt.com";
-const int mqtt_port =   10941;
-const char* mqtt_user = "dqaqegod";
+/*Configurations of WiFi and MQTT service*/
+const char* password      = "12345678";
+const char* ssid          = "Yurdaer";
+const char* mqtt_server   = "m23.cloudmqtt.com";
+const int mqtt_port       = 10941;
+const char* mqtt_user     = "dqaqegod";
 const char* mqtt_password = "JVPMD0qw7ij4";
-char* inTopic = "SensorIn";
-char* outTopic = "SensorOut";
-char* helloMsg = "Sensor is online";
+char* inTopic             = "SensorIn";
+char* outTopic            = "SensorOut";
+char* helloMsg            = "Sensor is online";
+
 char msg[100];
-String sMsg = "";
-int freq = 30;
+String sMsg  = "";
+int freq     = 30;
 int loopTime = 0;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 
-DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor
+DHT dht(DHTPIN, DHTTYPE); // Initialize DHT sensor
 
 
 void setup() {
@@ -128,16 +127,15 @@ void loop() {
   }
   sMsg.toCharArray(msg, 100);
 
-  /*
-    thermistor_value = CalculateThermistor(analogRead(thermistor_pin));
-    Serial.println(thermistor_value);
-    if ( thermistor_value > room_temp_limit) {
-      digitalWrite(yellow_pin, HIGH);
-    }
-    else {
-      digitalWrite(thermistor_value, LOW);
-    }
-  */
+  thermistor_value = CalculateThermistor(analogRead(thermistor_pin));
+  Serial.println(thermistor_value);
+  if ( thermistor_value > room_temp_limit) {
+    digitalWrite(yellow_pin, HIGH);
+  }
+  else {
+    digitalWrite(yellow_pin, LOW);
+  }
+  
 
 
   delay(100);
@@ -178,7 +176,7 @@ int ReadMIC() {
 }
 bool ReadTempHum() {
   // Reading temperature or humidity takes about 250 milliseconds!
-  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
   float h = dht.readHumidity();
   // Read temperature as Celsius (the default)
   float t = dht.readTemperature();
@@ -239,6 +237,9 @@ void reconnect() {
   }
 }
 
+/**
+ * MQTT callback handles messages that are received
+ */
 void callback(char* topic, byte* message, unsigned int length) {
   Serial.print("Message arrived on topic: ");
   Serial.print(topic);
