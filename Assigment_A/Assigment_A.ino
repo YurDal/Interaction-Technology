@@ -7,20 +7,23 @@
 
 
 #define DHTPIN 22       // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321 sensor
+#define DHTTYPE DHT22   // DHT 22  
 
-
+// Digital and analag pins connected to the LED's and Sensors
 const int red_pin = 12;
 const int green_pin = 13;
 const int yellow_pin = 25;
-const int ldr_pin = 32; 
+const int ldr_pin = 32;
 const int thermistor_pin = 27;
 const int mic_pin = 33;
 
+// Values and variables for thermistor
 float R1 = 10000;
 float logRt, T, Tc, Tf;
-float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07; //Coefficients for the NTC sensor
-const int room_temp_limit = 25;
+float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
+
+const int room_temp_limit = 25; // room tempratue constant
+
 int ldr_values         = 0; //variable to store the value coming from the LDR sensor
 int noise_values       = 0; //variable to store the value coming from the microphone sensor
 double temp_value_C    = 0; //variable to store the value coming from the temperature sensor Celcius
@@ -47,7 +50,7 @@ char* helloMsg            = "Sensor is online";
 
 char msg[100];
 String sMsg  = "";
-int freq     = 30;
+int freq     = 30; // Data transmition rate
 int loopTime = 0;
 
 WiFiClient espClient;
@@ -72,7 +75,7 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
   client.connect("ESP32Client", mqtt_user, mqtt_password);
   client.setCallback(callback);
-  client.publish(outTopic, "ready");
+  client.publish(outTopic, "Ready");
   client.subscribe(inTopic);
 }
 
@@ -135,7 +138,7 @@ void loop() {
   else {
     digitalWrite(yellow_pin, LOW);
   }
-  
+
 
 
   delay(100);
@@ -168,21 +171,32 @@ float CalculateThermistor(int AnalogValue) {
   Tf = (Tc * 1.8) + 32.0;              // Convert Kelvin to Fahrenheit
   return T;
 }
+
+/**
+   This method reads value comming rom LDR sensor
+*/
 int ReadLDR() {
   return analogRead(ldr_pin);
 }
+
+/**
+   This method reads value coming from Sound/audio sensor
+*/
 int ReadMIC() {
   return analogRead(mic_pin);
 }
+
+/**
+   This method reads the temprature and humidity values coming from DHT22 sensor
+*/
 bool ReadTempHum() {
-  // Reading temperature or humidity takes about 250 milliseconds!
-  // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
+  // Read humidity
   float h = dht.readHumidity();
-  // Read temperature as Celsius (the default)
+  // Read temperature as Celsius
   float t = dht.readTemperature();
-  // Read temperature as Fahrenheit (isFahrenheit = true)
+  // Read temperature as Fahrenheit
   float f = dht.readTemperature(true);
-  // Check if any reads failed and exit early (to try again).
+  // Check if any reads failed.
   if (isnan(h) || isnan(t) || isnan(f)) {
     Serial.println(F("Failed to read from DHT sensor!"));
     return false;
@@ -196,6 +210,9 @@ bool ReadTempHum() {
 
 }
 
+/**
+   This method does all configuration for WiFi and establish a connection to the WiFi network.
+*/
 void setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
@@ -205,17 +222,22 @@ void setup_wifi() {
 
   WiFi.begin(ssid, password);
 
+  /*
+     Loop until we are connected to the network
+  */
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 }
 
+/**
+   This method checks to MQTT connection and try to re-connect to the MQTT server if the connection is down
+*/
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -238,8 +260,8 @@ void reconnect() {
 }
 
 /**
- * MQTT callback handles messages that are received
- */
+   MQTT callback handles messages that are received
+*/
 void callback(char* topic, byte* message, unsigned int length) {
   Serial.print("Message arrived on topic: ");
   Serial.print(topic);
