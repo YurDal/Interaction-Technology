@@ -8,8 +8,8 @@ const int ir_left = 14;
 const int ir_right = 16;
 const int trig_pin = 32;
 const int echo_pin = 33;
-const int m_speed = 160;
-const int m_rotate = 100;
+const int m_speed = 140;
+const int m_rotate = 80;
 
 bool obstacle = false;
 bool left_sensor = false;
@@ -30,12 +30,24 @@ void setup() {
 }
 
 void loop() {
-
+ delay(10);
   ReadSensors();
   switch (State)
   {
     case STOP:
-      if (!obstacle) {
+      if (obstacle) {
+        Stop();
+        State = STOP;
+      }
+      else if (left_sensor && !right_sensor) {
+        MoveLeft();
+        State = ROTATE_LEFT;
+      }
+      else if (!left_sensor && right_sensor) {
+        MoveRight();
+        State = ROTATE_RIGHT;
+      }
+      else if (left_sensor && right_sensor) {
         MoveForward();
         State = FORWARD;
       }
@@ -43,7 +55,7 @@ void loop() {
       break;
 
     case FORWARD:
-      if (obstacle || (!left_sensor && !right_sensor)) {
+      if (obstacle ) {
         Stop();
         State = STOP;
       }
@@ -63,7 +75,7 @@ void loop() {
       break;
 
     case ROTATE_RIGHT:
-      if (obstacle || (!left_sensor && !right_sensor)) {
+      if (obstacle) {
         Stop();
         State = STOP;
       }
@@ -83,7 +95,7 @@ void loop() {
       break;
 
     case ROTATE_LEFT:
-      if (obstacle || (!left_sensor && !right_sensor)) {
+      if (obstacle) {
         Stop();
         State = STOP;
       }
@@ -110,13 +122,13 @@ void loop() {
       Serial.println("ROTATE");
       break;
   }
-
+  
 
 }
 
 int ReadDistance() {
   int distance = 0;
-  do {
+  
     // Clears the trigPin
     digitalWrite(trig_pin, LOW);
     delayMicroseconds(2);
@@ -129,7 +141,7 @@ int ReadDistance() {
     // Calculating the distance
     distance = (duration * 0.034 / 2);
 
-  } while (distance > 200);
+  
   return distance;
 }
 
@@ -182,7 +194,7 @@ void ReadSensors() {
     right_sensor = true;
   }
   else {
-    left_sensor = false;
+    right_sensor = false;
   }
   /*
     Serial.print("LEFT : ");
