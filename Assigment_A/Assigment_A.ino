@@ -18,7 +18,7 @@ const int thermistor_pin = 27;
 const int mic_pin = 33;
 
 // Values and variables for thermistor
-float R1 = 10000;
+float r1 = 10000;
 float logRt, T, Tc, Tf;
 float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
 
@@ -39,7 +39,7 @@ bool HUMID = true;
 
 /*Configurations of WiFi and MQTT service*/
 const char* password      = "12345678";
-const char* ssid          = "Yurdaer";
+const char* ssid          = "Hadi Deknache";
 const char* mqtt_server   = "m23.cloudmqtt.com";
 const int mqtt_port       = 10941;
 const char* mqtt_user     = "dqaqegod";
@@ -71,6 +71,7 @@ void setup() {
   pinMode(green_pin, OUTPUT);
   pinMode(yellow_pin, OUTPUT);
   pinMode(ldr_pin, INPUT);
+  pinMode(thermistor_pin, INPUT);
   dht.begin();
   client.setServer(mqtt_server, mqtt_port);
   client.connect("ESP32Client", mqtt_user, mqtt_password);
@@ -120,7 +121,7 @@ void loop() {
       }
     }
     if (TEMP) {
-
+      thermistor_value = CalculateThermistor(analogRead(thermistor_pin));
       sMsg += " , Temperature Value:" + String(temp_value_C) ;
     }
     if (HUMID) {
@@ -130,16 +131,25 @@ void loop() {
   }
   sMsg.toCharArray(msg, 100);
 
-  thermistor_value = CalculateThermistor(analogRead(thermistor_pin));
-  Serial.println(thermistor_value);
-  if ( thermistor_value > room_temp_limit) {
+  
+  /*Serial.print("LDR values :");
+    Serial.println(ldr_values);
+    Serial.print("NOISE values :");
+    Serial.println(noise_values);
+    Serial.print("Temprature value Celcius :");
+    Serial.println(temp_value_C);
+    Serial.print("Temprature value Fahrenheit :");
+    Serial.println(temp_value_F);
+    Serial.print("Humidity value  :");
+    Serial.println(humid_value);
+    Serial.print("Temprature value Celcius :");
+    Serial.println(temp_value_C);*/
+  /*if ( thermistor_value > room_temp_limit) {
     digitalWrite(yellow_pin, HIGH);
   }
   else {
     digitalWrite(yellow_pin, LOW);
-  }
-
-
+  }*/
 
   delay(100);
   loopTime++;
@@ -155,6 +165,8 @@ void loop() {
     Serial.println(temp_value_F);
     Serial.print("Humidity value  :");
     Serial.println(humid_value);
+    Serial.print("Temprature value ntc Celcius :");
+    Serial.println(thermistor_value);
     Serial.println(msg);
     loopTime = 0;
   }
@@ -165,11 +177,13 @@ void loop() {
 
 */
 float CalculateThermistor(int AnalogValue) {
-  logRt = log(10000.0 * ((1024.0 / AnalogValue - 1))); //Vout= (Vin * Rt) / (R + Rt) ==> Rt = R (Vin/Vout) – 1 ==> T=1/(c1+c2*logRt+c3*logRt*logRt*logRt)
+  logRt = log((r1 * ((1024.0 / AnalogValue)) - 1)); //Vout= (Vin * Rt) / (R + Rt) ==> Rt = R (Vin/Vout) – 1 ==> T=1/(c1+c2*logRt+c3*logRt*logRt*logRt)
   T = (1.0 / (c1 + c2 * logRt + c3 * logRt * logRt * logRt)); // We get the temperature value in Kelvin from this Stein-Hart equation
   Tc = T - 273.15;                     // Convert Kelvin to Celsius
   Tf = (Tc * 1.8) + 32.0;              // Convert Kelvin to Fahrenheit
-  return T;
+  //Serial.print("NTC Celcius :");
+  //Serial.println(AnalogValue);
+  return Tc;
 }
 
 /**
@@ -198,7 +212,7 @@ bool ReadTempHum() {
   float f = dht.readTemperature(true);
   // Check if any reads failed.
   if (isnan(h) || isnan(t) || isnan(f)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
+    //Serial.println(F("Failed to read from DHT sensor!"));
     return false;
   }
   else {
@@ -207,7 +221,6 @@ bool ReadTempHum() {
     humid_value = h;
     return true;
   }
-
 }
 
 /**
